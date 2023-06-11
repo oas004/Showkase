@@ -12,6 +12,7 @@ import androidx.room.compiler.processing.isLong
 import androidx.room.compiler.processing.isMethod
 import androidx.room.compiler.processing.isTypeElement
 import com.airbnb.android.showkase.annotation.ShowkaseComposable
+import com.airbnb.android.showkase.annotation.ShowkaseDesktopRoot
 import com.airbnb.android.showkase.annotation.ShowkaseRoot
 import com.airbnb.android.showkase.annotation.ShowkaseRootModule
 import com.airbnb.android.showkase.annotation.ShowkaseScreenshot
@@ -232,11 +233,16 @@ internal class ShowkaseValidator {
 
     internal fun validateShowkaseRootElement(
         elementSet: Set<XElement>,
-        environment: XProcessingEnv
+        environment: XProcessingEnv,
+        isDesktopRoot:  Boolean = false
     ) {
         if (elementSet.isEmpty()) return
 
-        val showkaseRootAnnotationName = ShowkaseRoot::class.java.simpleName
+        val showkaseRootAnnotationName = if (isDesktopRoot) {
+            ShowkaseDesktopRoot::class.java.simpleName
+        } else {
+            ShowkaseRoot::class.java.simpleName
+        }
 
         when {
             elementSet.size != 1 -> {

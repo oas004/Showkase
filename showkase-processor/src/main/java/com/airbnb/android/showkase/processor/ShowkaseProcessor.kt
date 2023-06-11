@@ -8,6 +8,7 @@ import androidx.room.compiler.processing.XTypeElement
 import com.airbnb.android.showkase.annotation.ShowkaseCodegenMetadata
 import com.airbnb.android.showkase.annotation.ShowkaseColor
 import com.airbnb.android.showkase.annotation.ShowkaseComposable
+import com.airbnb.android.showkase.annotation.ShowkaseDesktopRoot
 import com.airbnb.android.showkase.annotation.ShowkaseMultiPreviewCodegenMetadata
 import com.airbnb.android.showkase.annotation.ShowkaseRoot
 import com.airbnb.android.showkase.annotation.ShowkaseRootCodegen
@@ -59,6 +60,7 @@ class ShowkaseProcessor @JvmOverloads constructor(
             ShowkaseColor::class.java.name,
             ShowkaseTypography::class.java.name,
             ShowkaseRoot::class.java.name,
+            ShowkaseDesktopRoot::class.java.name,
             ShowkaseScreenshot::class.java.name,
             ShowkaseMultiPreviewCodegenMetadata::class.java.name,
         )
@@ -341,6 +343,8 @@ class ShowkaseProcessor @JvmOverloads constructor(
         // Showkase root annotation
         val rootElement = getShowkaseRootElement(roundEnvironment, environment)
 
+        val rootDesktopElement = getShowkaseDesktopRootElement(roundEnvironment, environment)
+
         // Showkase test annotation
         val (screenshotTestElement, screenshotTestType) = getShowkaseScreenshotTestElement(
             roundEnvironment
@@ -354,12 +358,14 @@ class ShowkaseProcessor @JvmOverloads constructor(
         val currentShowkaseBrowserProperties =
             writeMetadataFile(componentMetadata, colorMetadata, typographyMetadata)
 
-        if (rootElement != null) {
+        if (rootElement != null || rootDesktopElement != null) {
+            val internalRoot = rootElement ?: rootDesktopElement
             // This is the module that should aggregate all the other metadata files and
             // also use the showkaseMetadata set from the current round to write the final file.
             showkaseBrowserProperties = writeShowkaseFiles(
-                rootElement,
-                currentShowkaseBrowserProperties
+                internalRoot!!,
+                currentShowkaseBrowserProperties,
+                rootDesktopElement != null,
             )
         }
 
@@ -381,6 +387,15 @@ class ShowkaseProcessor @JvmOverloads constructor(
         return showkaseRootElements.singleOrNull() as XTypeElement?
     }
 
+    private fun getShowkaseDesktopRootElement(
+        roundEnvironment: XRoundEnv,
+        environment: XProcessingEnv
+    ): XTypeElement? {
+        val showkaseRootElements = roundEnvironment.getElementsAnnotatedWith(ShowkaseDesktopRoot::class)
+        showkaseValidator.validateShowkaseRootElement(showkaseRootElements, environment, true)
+        return showkaseRootElements.singleOrNull() as XTypeElement?
+    }
+
     private fun getShowkaseScreenshotTestElement(
         roundEnvironment: XRoundEnv
     ): Pair<XTypeElement?, ScreenshotTestType?> {
@@ -394,6 +409,7 @@ class ShowkaseProcessor @JvmOverloads constructor(
     private fun writeShowkaseFiles(
         rootElement: XTypeElement,
         currentShowkaseBrowserProperties: ShowkaseBrowserProperties,
+        isShowkaseDesktopRoot: Boolean = false
     ): ShowkaseBrowserProperties {
         val generatedShowkaseMetadataOnClasspath =
             getShowkaseCodegenMetadataOnClassPath(environment)
@@ -420,7 +436,7 @@ class ShowkaseProcessor @JvmOverloads constructor(
         )
         val allShowkaseBrowserProperties =
             currentShowkaseBrowserProperties + classpathShowkaseBrowserProperties
-        writeShowkaseBrowserFiles(rootElement, allShowkaseBrowserProperties)
+        writeShowkaseBrowserFiles(rootElement, allShowkaseBrowserProperties, isShowkaseDesktopRoot)
 
         return allShowkaseBrowserProperties
     }
@@ -546,6 +562,7 @@ class ShowkaseProcessor @JvmOverloads constructor(
     private fun writeShowkaseBrowserFiles(
         rootElement: XTypeElement,
         allShowkaseBrowserProperties: ShowkaseBrowserProperties,
+        isDesktopRoot: Boolean
     ) {
         if (allShowkaseBrowserProperties.isEmpty()) return
         val rootModuleClassName = rootElement.name
@@ -565,7 +582,8 @@ class ShowkaseProcessor @JvmOverloads constructor(
             generateShowkaseExtensionFunctions(
                 rootModulePackageName = rootModulePackageName,
                 rootModuleClassName = rootModuleClassName,
-                rootElement = rootElement
+                rootElement = rootElement,
+                shouldGenerateIntent = !isDesktopRoot
             )
         }
     }

@@ -17,8 +17,11 @@ internal class ShowkaseExtensionFunctionsWriter(
     internal fun generateShowkaseExtensionFunctions(
         rootModulePackageName: String,
         rootModuleClassName: String,
-        rootElement: XTypeElement
+        rootElement: XTypeElement,
+        shouldGenerateIntent: Boolean = true,
     ) {
+        if (shouldGenerateIntent) {
+
         getFileBuilder(
             rootModulePackageName,
             "${rootModuleClassName}$SHOWKASE_METHODS_SUFFIX"
@@ -38,6 +41,20 @@ internal class ShowkaseExtensionFunctionsWriter(
             )
             .build()
             .writeTo(environment.filer, mode = XFiler.Mode.Aggregating)
+        } else {
+            getFileBuilder(
+                rootModulePackageName,
+                "${rootModuleClassName}$SHOWKASE_METHODS_SUFFIX"
+            )
+                .addFunction(
+                    generateMetadataFunction(
+                        rootElement,
+                        "$rootModulePackageName.$rootModuleClassName"
+                    )
+                )
+                .build()
+                .writeTo(environment.filer, mode = XFiler.Mode.Aggregating)
+        }
     }
 
     private fun generateIntentFunction(
