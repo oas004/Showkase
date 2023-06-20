@@ -1,14 +1,14 @@
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Coffee
-import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +38,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.airbnb.android.showkase.models.ShowkaseBrowserColor
 import com.airbnb.android.showkase.models.ShowkaseBrowserComponent
 import com.airbnb.android.showkase.models.ShowkaseElementsMetadata
 import com.airbnb.android.showkase.models.ShowkaseProvider
@@ -50,11 +50,13 @@ enum class NavItems {
 sealed class ComponentViewState {
     object Group : ComponentViewState()
 
-    object Components : ComponentViewState()
-    data class SingleComponent(val component: ShowkaseBrowserComponent) : ComponentViewState()
+    data class Components(val belongingGroup: String) : ComponentViewState()
+    data class SingleComponent(
+        val component: ShowkaseBrowserComponent,
+        val belongingGroup: String
+    ) : ComponentViewState()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 fun main() = application {
     val component = remember {
         getShowkaseProviderElements("com.airbnb.android.showkasesample.RootModule")
@@ -100,92 +102,120 @@ fun main() = application {
                 ) {
                     when (selectedNavItem) {
                         NavItems.Components -> {
-                            when (val selected = selectedComponentViewState) {
-                                ComponentViewState.Group -> {
-                                    items(component.distinctBy { it.group }) { item ->
-                                        ElevatedCard(
-                                            Modifier.size(100.dp).padding(20.dp).clickable {
-                                                selectedComponentViewState =
-                                                    ComponentViewState.Components
-                                            }
-                                        ) {
-
-                                            Text(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .align(Alignment.CenterHorizontally),
-                                                text = item.group,
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                }
-
-                                is ComponentViewState.SingleComponent -> {
-                                    item {
-                                        BackButton(
-                                            onClick = {
-                                                selectedComponentViewState =
-                                                    ComponentViewState.Components
-                                            }
-                                        )
-                                    }
-                                    item {
-                                        ElevatedCard {
-                                            val item = selected.component
-                                            Column(Modifier.size(400.dp)) {
-                                                item.component.invoke()
-                                                Text(item.componentName)
-                                            }
-                                        }
-                                    }
-                                }
-
-                                is ComponentViewState.Components -> {
-                                    item {
-                                        BackButton(
-                                            onClick = {
-                                                selectedComponentViewState =
-                                                    ComponentViewState.Group
-                                            }
-                                        )
-                                    }
-                                    items(component.distinctBy { it.componentName }) { item ->
-                                        ElevatedCard(
-                                            Modifier.size(100.dp).padding(20.dp).clickable {
-                                                selectedComponentViewState =
-                                                    ComponentViewState.SingleComponent(item)
-                                            }
-                                        ) {
-                                            Text(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                text = item.componentName,
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                            componentSection(
+                                selectedComponentViewState = selectedComponentViewState,
+                                onSelectComponent = {
+                                    selectedComponentViewState = it
+                                },
+                                component = component
+                            )
                         }
 
                         NavItems.Colors -> {
-                            items(colors) { item ->
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    ElevatedCard(
-                                        modifier = Modifier.size(100.dp),
-                                        colors = CardDefaults.cardColors(containerColor = item.color)
-                                    ) {}
-                                    Text(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        text = "Color name: ${item.colorName}",
-                                        textAlign = TextAlign.Center
-                                    )
-                                }
-                            }
+                            colorSection(colors)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+private fun LazyGridScope.componentSection(
+    selectedComponentViewState: ComponentViewState,
+    onSelectComponent: (component: ComponentViewState) -> Unit,
+    component: List<ShowkaseBrowserComponent>
+) {
+    when (selectedComponentViewState) {
+        is ComponentViewState.Group -> {
+            items(component.distinctBy { it.group }) { item ->
+                ElevatedCard(
+                    modifier = Modifier.padding(20.dp),
+                    onClick = {
+                        onSelectComponent(ComponentViewState.Components(item.group))
+                    }
+                ) {
+
+                    Text(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp, horizontal = 12.dp)
+                            .align(Alignment.CenterHorizontally),
+                        text = item.group,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        is ComponentViewState.SingleComponent -> {
+            item {
+                BackButton(
+                    onClick = {
+                        onSelectComponent(
+                            ComponentViewState.Components(
+                                selectedComponentViewState.belongingGroup
+                            )
+                        )
+
+                    }
+                )
+            }
+            item {
+                val item = selectedComponentViewState.component
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    item.component.invoke()
+                    Spacer(Modifier.size(12.dp))
+                    Text(item.componentName)
+                }
+            }
+        }
+
+        is ComponentViewState.Components -> {
+            item {
+                BackButton(
+                    onClick = {
+                        onSelectComponent(ComponentViewState.Group)
+                    }
+                )
+            }
+            items(component.distinctBy { it.componentName }
+                .filter { it.group == selectedComponentViewState.belongingGroup }) { item ->
+                ElevatedCard(
+                    modifier = Modifier.padding(20.dp),
+                    onClick = {
+                        onSelectComponent(ComponentViewState.SingleComponent(item, item.group))
+                    }
+                ) {
+                    Text(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(vertical = 20.dp, horizontal = 12.dp),
+                        text = item.componentName,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+private fun LazyGridScope.colorSection(colors: List<ShowkaseBrowserColor>) {
+    items(colors) { item ->
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            ElevatedCard(
+                modifier = Modifier.size(100.dp),
+                colors = CardDefaults.cardColors(containerColor = item.color)
+            ) {}
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = "Color name: ${item.colorName}",
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
