@@ -1,20 +1,16 @@
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.OutlinedButton
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material3.CardDefaults
@@ -96,8 +92,8 @@ fun main() = application {
                     )
                 }
                 LazyVerticalGrid(
-                    modifier = Modifier.fillMaxSize(),
-                    columns = GridCells.Adaptive(150.dp),
+                    modifier = Modifier.fillMaxHeight().weight(1f),
+                    columns = GridCells.Adaptive(360.dp),
                     contentPadding = PaddingValues(40.dp)
                 ) {
                     when (selectedNavItem) {
@@ -116,12 +112,16 @@ fun main() = application {
                         }
                     }
                 }
+                AnimatedVisibility(selectedComponentViewState is ComponentViewState.SingleComponent) {
+                    if (selectedComponentViewState is ComponentViewState.SingleComponent) {
+                        ComponentDetail(selectedComponentViewState)
+                    }
+                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 private fun LazyGridScope.componentSection(
     selectedComponentViewState: ComponentViewState,
     onSelectComponent: (component: ComponentViewState) -> Unit,
@@ -129,79 +129,26 @@ private fun LazyGridScope.componentSection(
 ) {
     when (selectedComponentViewState) {
         is ComponentViewState.Group -> {
-            items(component.distinctBy { it.group }) { item ->
-                ElevatedCard(
-                    modifier = Modifier.padding(20.dp),
-                    onClick = {
-                        onSelectComponent(ComponentViewState.Components(item.group))
-                    }
-                ) {
-
-                    Text(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 20.dp, horizontal = 12.dp)
-                            .align(Alignment.CenterHorizontally),
-                        text = item.group,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            componentGroup(component = component, onSelectComponent = onSelectComponent)
         }
 
         is ComponentViewState.SingleComponent -> {
-            item {
-                BackButton(
-                    onClick = {
-                        onSelectComponent(
-                            ComponentViewState.Components(
-                                selectedComponentViewState.belongingGroup
-                            )
-                        )
-
-                    }
-                )
-            }
-            item {
-                val item = selectedComponentViewState.component
-                Column(
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    item.component.invoke()
-                    Spacer(Modifier.size(12.dp))
-                    Text(item.componentName)
-                }
-            }
+            singleComponent(
+                onSelectComponent = onSelectComponent,
+                selectedComponentViewState = selectedComponentViewState
+            )
         }
 
         is ComponentViewState.Components -> {
-            item {
-                BackButton(
-                    onClick = {
-                        onSelectComponent(ComponentViewState.Group)
-                    }
-                )
-            }
-            items(component.distinctBy { it.componentName }
-                .filter { it.group == selectedComponentViewState.belongingGroup }) { item ->
-                ElevatedCard(
-                    modifier = Modifier.padding(20.dp),
-                    onClick = {
-                        onSelectComponent(ComponentViewState.SingleComponent(item, item.group))
-                    }
-                ) {
-                    Text(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(vertical = 20.dp, horizontal = 12.dp),
-                        text = item.componentName,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            conmponentOverview(
+                onSelectComponent = onSelectComponent,
+                component = component,
+                selectedComponentViewState = selectedComponentViewState
+            )
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 private fun LazyGridScope.colorSection(colors: List<ShowkaseBrowserColor>) {
@@ -219,21 +166,6 @@ private fun LazyGridScope.colorSection(colors: List<ShowkaseBrowserColor>) {
         }
     }
 }
-
-@Composable
-private fun BackButton(onClick: () -> Unit) {
-    OutlinedButton(
-        modifier = Modifier.padding(20.dp),
-        onClick = onClick,
-        shape = CircleShape
-    ) {
-        Icon(
-            Icons.Filled.ArrowBack,
-            "Back arrow"
-        )
-    }
-}
-
 
 @Composable
 private fun ComponentNavItem(
